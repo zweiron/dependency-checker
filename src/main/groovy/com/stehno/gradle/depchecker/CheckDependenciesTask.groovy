@@ -45,9 +45,10 @@ class CheckDependenciesTask extends DefaultTask {
         description = 'Checks the project dependencies for duplicate libraries with different versions.'
     }
 
-    @TaskAction void checkDependencies() {
+    @TaskAction
+    void checkDependencies() {
         DependencyCheckResults results = new DependencyCheckResults()
-        ResultListener resultListener = resultListenerClass ? resultListenerClass.newInstance() : null
+        ResultListener resultListener = resultListenerClass ? resultListenerClass.getDeclaredConstructor().newInstance() : null
 
         Set<String> deps = [] as Set<String>
 
@@ -75,6 +76,3 @@ class CheckDependenciesTask extends DefaultTask {
         }
     }
 }
-
-
-

@@ -25,13 +25,7 @@ class DependencyCheckerPlugin implements Plugin<Project> {
 
     @Override
     void apply(Project project) {
-        project.task 'checkDependencies', type: CheckDependenciesTask
-        project.task 'checkAvailability', type: CheckAvailabilityTask
-
-        // FIXME: this does not seem to work right - fix it
-        //        // make the dependency check part of the overall check
-        //        project.getTasksByName(CHECK_TASK_NAME, true)?.each { Task t ->
-        //            t.dependsOn checkDepTask
-        //        }
+        project.tasks.register("checkDependencies", CheckDependenciesTask)
+        project.tasks.register('checkAvailability', CheckAvailabilityTask)
     }
 }

@@ -17,32 +17,33 @@ package com.stehno.gradle.depchecker
 
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
-import org.junit.Assert
-import org.junit.Before
-import org.junit.Ignore
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+
+import java.nio.file.Path
 
 class CheckDependenciesTaskTest {
 
-    // FIXME: move to new test method
+    @TempDir
+    static Path projectDir
 
-    @Rule public TemporaryFolder projectDir = new TemporaryFolder()
-
-    @Before void before() {
+    @BeforeEach
+    void before() {
         TestResultListener.clear()
     }
 
     @Test
     void 'checkDependencies: no dependencies'() {
-        Project project = ProjectBuilder.builder().withProjectDir(projectDir.newFolder()).build()
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("no-deps").toFile()).build()
 
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
         project.repositories {
-            jcenter()
+            mavenCentral()
         }
 
         project.dependencies {
@@ -52,51 +53,51 @@ class CheckDependenciesTaskTest {
             resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
         }
 
-        project.tasks.checkDependencies.execute()
+        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
 
     @Test
     void 'checkDependencies: normal'() {
-        Project project = ProjectBuilder.builder().withProjectDir(projectDir.newFolder()).build()
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("normal").toFile()).build()
 
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
         project.repositories {
-            jcenter()
+            mavenCentral()
         }
 
         project.dependencies {
         }
 
-        project.tasks.checkDependencies.execute()
+        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
 
     @Test
     void 'checkDependencies: without duplicates'() {
-        Project project = ProjectBuilder.builder().withProjectDir(projectDir.newFolder()).build()
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("no-dups").toFile()).build()
 
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
         project.repositories {
-            jcenter()
+            mavenCentral()
         }
 
         project.dependencies {
-            compile('com.stehno.vanilla:vanilla-core:0.2.0') {
+            implementation('com.stehno.vanilla:vanilla-core:0.2.0') {
                 exclude group: 'org.codehaus.groovy', module: 'groovy-all'
             }
-            compile 'commons-io:commons-io:2.4'
+            implementation 'commons-io:commons-io:2.4'
 
-            runtime 'org.postgresql:postgresql:9.4.1207'
+            runtimeOnly 'org.postgresql:postgresql:9.4.1207'
 
-            testCompile 'junit:junit:4.12'
-            testCompile('com.stehno.vanilla:vanilla-core:0.2.0') {
+            testImplementation 'junit:junit:4.12'
+            testImplementation('com.stehno.vanilla:vanilla-core:0.2.0') {
                 exclude group: 'org.codehaus.groovy', module: 'groovy-all'
             }
         }
@@ -105,34 +106,34 @@ class CheckDependenciesTaskTest {
             resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
         }
 
-        project.tasks.checkDependencies.execute()
+        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
 
     @Test
     void 'checkDependencies: with duplicates'() {
-        Project project = ProjectBuilder.builder().withProjectDir(projectDir.newFolder()).build()
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("with-dups").toFile()).build()
 
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
         project.repositories {
-            jcenter()
+            mavenCentral()
         }
 
         project.dependencies {
-            compile('com.stehno.vanilla:vanilla-core:0.2.0') {
+            implementation('com.stehno.vanilla:vanilla-core:0.2.0') {
                 exclude group: 'org.codehaus.groovy', module: 'groovy-all'
             }
-            compile 'commons-io:commons-io:2.4'
-            compile 'commons-io:commons-io:2.3'
+            implementation 'commons-io:commons-io:2.4'
+            implementation 'commons-io:commons-io:2.3'
 
-            runtime 'org.postgresql:postgresql:9.4.1207'
+            runtimeOnly 'org.postgresql:postgresql:9.4.1207'
 
-            testCompile 'junit:junit:4.12'
-            testCompile 'junit:junit:4.10'
-            testCompile('com.stehno.vanilla:vanilla-core:0.2.0') {
+            testImplementation 'junit:junit:4.12'
+            testImplementation 'junit:junit:4.10'
+            testImplementation('com.stehno.vanilla:vanilla-core:0.2.0') {
                 exclude group: 'org.codehaus.groovy', module: 'groovy-all'
             }
         }
@@ -142,23 +143,23 @@ class CheckDependenciesTaskTest {
         }
 
         try {
-            project.tasks.checkDependencies.execute()
+            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
             Assert.fail()
         } catch (RuntimeException rex){
             // success
         }
 
         assert TestResultListener.hasDuplicates()
-        assert TestResultListener.duplicatesFor('compile').size() == 1
-        assert TestResultListener.duplicatesFor('compile').contains('commons-io:commons-io')
-        assert TestResultListener.duplicatesFor('runtime').size() == 0
-        assert TestResultListener.duplicatesFor('testCompile').size() == 1
-        assert TestResultListener.duplicatesFor('testCompile').contains('junit:junit')
+        assert TestResultListener.duplicatesFor('implementation').size() == 1
+        assert TestResultListener.duplicatesFor('implementation').contains('commons-io:commons-io')
+        assert TestResultListener.duplicatesFor('runtimeOnly').size() == 0
+        assert TestResultListener.duplicatesFor('testImplementation').size() == 1
+        assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
     }
 
-    @Test @Ignore // FIXME: put this back when the check funx is back in
+    @Test @Disabled // FIXME: put this back when the check funx is back in
     void 'check depends on checkDependencies'() {
-        Project project = ProjectBuilder.builder().withProjectDir(projectDir.newFolder()).build()
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("dependency").toFile()).build()
 
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
@@ -168,47 +169,47 @@ class CheckDependenciesTaskTest {
 
     @Test
     void 'checkDependencies: with duplicates (filtered)'() {
-        Project project = ProjectBuilder.builder().withProjectDir(projectDir.newFolder()).build()
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("filtered").toFile()).build()
 
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
         project.repositories {
-            jcenter()
+            mavenCentral()
         }
 
         project.dependencies {
-            compile('com.stehno.vanilla:vanilla-core:0.2.0') {
+            implementation('com.stehno.vanilla:vanilla-core:0.2.0') {
                 exclude group: 'org.codehaus.groovy', module: 'groovy-all'
             }
-            compile 'commons-io:commons-io:2.4'
-            compile 'commons-io:commons-io:2.3'
+            implementation 'commons-io:commons-io:2.4'
+            implementation 'commons-io:commons-io:2.3'
 
-            runtime 'org.postgresql:postgresql:9.4.1207'
+            runtimeOnly 'org.postgresql:postgresql:9.4.1207'
 
-            testCompile 'junit:junit:4.12'
-            testCompile 'junit:junit:4.10'
-            testCompile('com.stehno.vanilla:vanilla-core:0.2.0') {
+            testImplementation 'junit:junit:4.12'
+            testImplementation 'junit:junit:4.10'
+            testImplementation('com.stehno.vanilla:vanilla-core:0.2.0') {
                 exclude group: 'org.codehaus.groovy', module: 'groovy-all'
             }
         }
 
         project.checkDependencies {
-            configurations = ['runtime', 'testCompile']
+            configurations = ['runtimeOnly', 'testImplementation']
             resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
         }
 
         try {
-            project.tasks.checkDependencies.execute()
+            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
             Assert.fail()
         } catch (RuntimeException rex){
             // success
         }
 
-        assert TestResultListener.hasDuplicates()
-        assert TestResultListener.duplicatesFor('compile').size() == 0
-        assert TestResultListener.duplicatesFor('runtime').size() == 0
-        assert TestResultListener.duplicatesFor('testCompile').size() == 1
-        assert TestResultListener.duplicatesFor('testCompile').contains('junit:junit')
+        Assertions.assertTrue(TestResultListener.hasDuplicates())
+        assert TestResultListener.duplicatesFor('implementation').size() == 0
+        assert TestResultListener.duplicatesFor('runtimeOnly').size() == 0
+        assert TestResultListener.duplicatesFor('testImplementation').size() == 1
+        assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
     }
 }

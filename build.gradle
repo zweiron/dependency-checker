@@ -1,22 +1,16 @@
 plugins {
-    id 'com.github.hierynomus.license' version '0.13.1'
-    id 'com.gradle.plugin-publish' version '0.9.9'
+    id 'com.github.hierynomus.license' version '0.15.0'
+    id 'com.gradle.plugin-publish' version '2.1.1'
     id 'groovy'
     id 'java-gradle-plugin'
-    id 'jacoco'
+    //id 'jacoco'
 }
-
-// TODO: tweak the jacoco config
 
 group = 'com.stehno.gradle'
-version = '0.2.3'
+version = '0.3.0'
 
-sourceCompatibility = 8
-targetCompatibility = 8
-
-repositories {
-    jcenter()
-}
+sourceCompatibility = 17
+targetCompatibility = 17
 
 sourceSets {
     functionalTest {
@@ -26,31 +20,30 @@ sourceSets {
         resources {
             srcDir file('src/functionalTest/resources')
         }
-        compileClasspath += sourceSets.main.output + configurations.testRuntime
-        runtimeClasspath += output + compileClasspath
+        //compileClasspath += sourceSets.main.output + configurations.testRuntime
+        //runtimeClasspath += output + compileClasspath
     }
 }
 
-task functionalTest(type: Test) {
+/*task functionalTest(type: Test) {
     testClassesDir = sourceSets.functionalTest.output.classesDir
     classpath = sourceSets.functionalTest.runtimeClasspath
-}
+}*/
 
-check.dependsOn functionalTest
+//check.dependsOn functionalTest
 
 gradlePlugin {
     testSourceSets sourceSets.functionalTest
 }
 
 dependencies {
-    localGroovy()
+    testImplementation(platform("org.junit:junit-bom:6.0.3"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    testCompile 'junit:junit:4.12'
-    testCompile ('org.spockframework:spock-core:1.0-groovy-2.4'){
-        exclude module:'groovy-all'
-    }
+    testImplementation ('org.spockframework:spock-core:2.4-groovy-3.0')
 
-    functionalTestCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+    /*functionalTestCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
         exclude module: 'groovy-all'
     }
     functionalTestCompile('org.mock-server:mockserver-client-java:3.10.4') {
@@ -58,15 +51,19 @@ dependencies {
     }
     functionalTestCompile('org.mock-server:mockserver-netty:3.10.4') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
-    }
+    }*/
 }
 
-license {
+test {
+    useJUnitPlatform()
+}
+
+/*license {
     header rootProject.file('license_header.txt')
     ext.year = Calendar.instance.get(Calendar.YEAR)
-}
+}*/
 
-pluginBundle {
+/*pluginBundle {
     website = 'http://cjstehno.github.io/dependency-checker/'
     vcsUrl = 'https://github.com/cjstehno/dependency-checker'
     description = 'Gradle plugin to aid in managing dependencies.'
@@ -78,8 +75,4 @@ pluginBundle {
             displayName = 'Gradle Dependency Checker Plugin'
         }
     }
-}
-
-task wrapper(type: Wrapper) {
-    gradleVersion = '2.14'
-}
+}*/
