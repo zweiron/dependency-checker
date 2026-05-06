@@ -58,8 +58,11 @@ class CheckAvailabilityTask extends DefaultTask {
             Set<DependencyCoordinate> coords = [] as Set<DependencyCoordinate>
 
             (configurations ?: project.configurations.names).each { String cname ->
-                project.configurations.getByName(cname).resolvedConfiguration.firstLevelModuleDependencies.each { ResolvedDependency dep ->
-                    collectDependencies(coords, dep)
+                def config = project.configurations.getByName(cname)
+                if (config.canBeResolved) {
+                    config.resolvedConfiguration.firstLevelModuleDependencies.each { ResolvedDependency dep ->
+                        collectDependencies(coords, dep)
+                    }
                 }
             }
 

@@ -1,0 +1,104 @@
+plugins {
+    id 'groovy'
+    id 'java-gradle-plugin'
+    id 'maven-publish'
+    //id 'jacoco'
+}
+
+group = 'com.stehno.gradle'
+version = '0.3.0'
+
+java {
+    sourceCompatibility = 17
+    targetCompatibility = 17
+}
+
+
+sourceSets {
+    functionalTest {
+        groovy {
+            srcDir file('src/functionalTest/groovy')
+        }
+        resources {
+            srcDir file('src/functionalTest/resources')
+        }
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+configurations.functionalTestImplementation.extendsFrom(configurations.testImplementation)
+configurations.functionalTestRuntimeOnly.extendsFrom(configurations.testRuntimeOnly)
+
+dependencies {
+    testImplementation(platform("org.junit:junit-bom:6.0.3"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    testImplementation ('org.spockframework:spock-core:2.4-groovy-3.0')
+    testImplementation('org.mock-server:mockserver-junit-jupiter-no-dependencies:5.14.0')
+}
+
+tasks.register('functionalTest', Test) {
+    testClassesDirs = sourceSets.functionalTest.output.classesDirs
+    classpath = sourceSets.functionalTest.runtimeClasspath
+    useJUnitPlatform()
+}
+
+tasks.named('check') {
+    // Run the functional tests as part of `check`
+    dependsOn(tasks.functionalTest)
+}
+
+tasks.named('test') {
+    // Use JUnit Jupiter for unit tests.
+    useJUnitPlatform()
+}
+
+/*license {
+    header rootProject.file('license_header.txt')
+    ext.year = Calendar.instance.get(Calendar.YEAR)
+}*/
+
+/*pluginBundle {
+    website = 'http://cjstehno.github.io/dependency-checker/'
+    vcsUrl = 'https://github.com/cjstehno/dependency-checker'
+    description = 'Gradle plugin to aid in managing dependencies.'
+    tags = ['gradle', 'groovy']
+
+    plugins {
+        dependencyCheckerPlugin {
+            id = 'com.stehno.gradle.dependency-checker'
+            displayName = 'Gradle Dependency Checker Plugin'
+        }
+    }
+}*/
+
+processResources {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+gradlePlugin {
+    testSourceSets sourceSets.functionalTest
+    website = 'http://cjstehno.github.io/dependency-checker/'
+    vcsUrl = 'https://github.com/cjstehno/dependency-checker'
+    // Define the plugin
+    plugins {
+        register('dependencyCheckerPlugin') {
+            id = 'com.stehno.gradle.dependency-checker'
+            implementationClass = 'com.stehno.gradle.dependency-checker.DependencyCheckerPlugin'
+            displayName = 'Gradle Dependency Checker Plugin'
+            description = 'Gradle plugin to aid in managing dependencies.'
+            tags = ['gradle', 'groovy']
+        }
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = 'localRepo'
+            url = layout.buildDirectory.dir('local-repo').get().asFile.toURI()
+        }
+    }
+}

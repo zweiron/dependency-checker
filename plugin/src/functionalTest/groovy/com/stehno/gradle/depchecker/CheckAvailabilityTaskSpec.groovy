@@ -19,36 +19,50 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.BuildTask
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
-import org.junit.Rule
-import org.junit.rules.TemporaryFolder
-import org.mockserver.client.server.MockServerClient
-import org.mockserver.junit.MockServerRule
+import spock.lang.TempDir
+import org.mockserver.integration.ClientAndServer
+import org.mockserver.matchers.Times
+import org.mockserver.model.HttpRequest
+import org.mockserver.model.HttpResponse
 import spock.lang.Specification
+
+import java.nio.file.Path
 
 import static org.gradle.testkit.runner.TaskOutcome.FAILED
 
 class CheckAvailabilityTaskSpec extends Specification {
 
-    @Rule public TemporaryFolder projectDir = new TemporaryFolder()
-    @Rule public MockServerRule server = new MockServerRule(this)
+    @TempDir
+    Path projectDir
 
-    private MockServerClient client
+    private static ClientAndServer mockServer
+
+    def setupSpec() {
+        mockServer = startClientAndServer(1080)
+    }
+
+    def cleanupSpec() {
+        mockServer?.stop()
+    }
 
     void 'checkAvailability --info (all available - fail on missing)'() {
         setup:
         def availables = available([
-            'com.stehno.vanilla:vanilla-core:0.2.0', 'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207',
-            'org.crsh:crsh.shell.core:1.2.10', 'org.crsh:crsh.cli:1.2.10', 'org.codehaus.groovy:groovy-all:1.8.9', 'org.apache.sshd:sshd-core:0.6.0',
-            'org.apache.mina:mina-core:2.0.4', 'org.slf4j:slf4j-api:1.6.1', 'org.apache.sshd:sshd-pam:0.6.0', 'net.sf.jpam:jpam:1.1',
-            'commons-logging:commons-logging:1.0.4', 'org.bouncycastle:bcprov-jdk16:1.46', 'junit:junit:4.12', 'org.hamcrest:hamcrest-core:1.3'
+                'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207',
+                'org.crsh:crsh.shell.core:1.2.10', 'org.crsh:crsh.cli:1.2.10',
+                'org.codehaus.groovy:groovy-all:1.8.9', 'org.apache.sshd:sshd-core:0.6.0',
+                'org.apache.mina:mina-core:2.0.4', 'org.slf4j:slf4j-api:1.6.1',
+                'org.apache.sshd:sshd-pam:0.6.0', 'net.sf.jpam:jpam:1.1',
+                'commons-logging:commons-logging:1.0.4', 'org.bouncycastle:bcprov-jdk16:1.46',
+                'junit:junit:4.12', 'org.hamcrest:hamcrest-core:1.3'
         ])
 
-        saveBuildFile """
+        saveBuildFile ("""
             checkAvailability {
-                repoUrls = ['http://localhost:${server.port}/repo']
+                repoUrls = ['http://localhost:${mockServer.port}/repo']
                 failOnMissing = true
             }
-        """
+        """)
 
         when:
         BuildResult result = gradleRunner().withArguments('checkAvailability', '--info').build()
@@ -63,7 +77,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     void 'checkAvailability --info (all available - fail on missing - override url)'() {
         setup:
         def availables = available([
-            'com.stehno.vanilla:vanilla-core:0.2.0', 'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207',
+            'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207',
             'org.crsh:crsh.shell.core:1.2.10', 'org.crsh:crsh.cli:1.2.10', 'org.codehaus.groovy:groovy-all:1.8.9', 'org.apache.sshd:sshd-core:0.6.0',
             'org.apache.mina:mina-core:2.0.4', 'org.slf4j:slf4j-api:1.6.1', 'org.apache.sshd:sshd-pam:0.6.0', 'net.sf.jpam:jpam:1.1',
             'commons-logging:commons-logging:1.0.4', 'org.bouncycastle:bcprov-jdk16:1.46', 'junit:junit:4.12', 'org.hamcrest:hamcrest-core:1.3'
@@ -77,7 +91,7 @@ class CheckAvailabilityTaskSpec extends Specification {
         """
 
         when:
-        BuildResult result = gradleRunner().withArguments('checkAvailability', '--info', "-PrepoUrls=http://localhost:${server.port}/repo").build()
+        BuildResult result = gradleRunner().withArguments('checkAvailability', '--info', "-PrepoUrls=http://localhost:${mockServer.port}/repo").build()
 
         then:
         checkForLoggedStatus result, availables, true
@@ -86,7 +100,7 @@ class CheckAvailabilityTaskSpec extends Specification {
         totalSuccess result
     }
 
-    void 'checkAvailability --info (all available - fail on missing - runtime configuration)'() {
+    void 'checkAvailability --info (all available - fail on missing - runtimeClasspath configuration)'() {
         setup:
         def availables = available([
             'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207',
@@ -97,8 +111,8 @@ class CheckAvailabilityTaskSpec extends Specification {
 
         saveBuildFile """
             checkAvailability {
-                repoUrls = ['http://localhost:${server.port}/repo']
-                configurations = ['runtime']
+                repoUrls = ['http://localhost:${mockServer.port}/repo']
+                configurations = ['runtimeClasspath']
                 failOnMissing = true
             }
         """
@@ -116,7 +130,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     void 'checkAvailability --info (some available - not fail on missing)'() {
         setup:
         def availables = available([
-            'com.stehno.vanilla:vanilla-core:0.2.0', 'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
+            'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
         ])
 
         def unavailables = unavailable([
@@ -127,7 +141,7 @@ class CheckAvailabilityTaskSpec extends Specification {
 
         saveBuildFile """
             checkAvailability {
-                repoUrls = ['http://localhost:${server.port}/repo']
+                repoUrls = ['http://localhost:${mockServer.port}/repo']
             }
         """
 
@@ -145,7 +159,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     void 'checkAvailability (some available - not fail on missing - some ignored)'() {
         setup:
         def availables = available([
-            'com.stehno.vanilla:vanilla-core:0.2.0', 'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
+            'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
         ])
 
         def unavailables = unavailable([
@@ -158,7 +172,7 @@ class CheckAvailabilityTaskSpec extends Specification {
 
         saveBuildFile """
             checkAvailability {
-                repoUrls = ['http://localhost:${server.port}/repo']
+                repoUrls = ['http://localhost:${mockServer.port}/repo']
                 ignored = ['junit:junit:4.12', 'org.hamcrest:hamcrest-core:1.3']
             }
         """
@@ -177,7 +191,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     void 'checkAvailability --info (some available - fail on missing)'() {
         setup:
         available([
-            'com.stehno.vanilla:vanilla-core:0.2.0', 'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
+            'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
         ])
 
         unavailable([
@@ -188,7 +202,7 @@ class CheckAvailabilityTaskSpec extends Specification {
 
         saveBuildFile """
             checkAvailability {
-                repoUrls = ['http://localhost:${server.port}/repo']
+                repoUrls = ['http://localhost:${mockServer.port}/repo']
                 failOnMissing = true
             }
         """
@@ -203,7 +217,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     void 'checkAvailability --info (some available - fail on missing - no repos)'() {
         setup:
         available([
-            'com.stehno.vanilla:vanilla-core:0.2.0', 'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
+            'commons-io:commons-io:2.4', 'org.crsh:crsh.shell.ssh:1.2.10', 'org.postgresql:postgresql:9.4.1207'
         ])
 
         unavailable([
@@ -228,7 +242,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     }
 
     private GradleRunner gradleRunner() {
-        GradleRunner.create().withPluginClasspath().withProjectDir(projectDir.root)
+        GradleRunner.create().withPluginClasspath().withProjectDir(projectDir.toFile())
     }
 
     private static boolean totalSuccess(final BuildResult result) {
@@ -248,7 +262,7 @@ class CheckAvailabilityTaskSpec extends Specification {
     }
 
     private void saveBuildFile(final String taskConfig) {
-        File buildFile = projectDir.newFile('build.gradle')
+        File buildFile = projectDir.resolve('build.gradle').toFile()
         buildFile.text = """
             plugins {
                 id 'com.stehno.gradle.dependency-checker'
@@ -256,33 +270,30 @@ class CheckAvailabilityTaskSpec extends Specification {
             }
 
             repositories {
-                jcenter()
+                mavenCentral()
             }
 
             dependencies {
-                compile 'commons-io:commons-io:2.4'
-                compile 'org.crsh:crsh.shell.ssh:1.2.10'
+                implementation 'commons-io:commons-io:2.4'
+                implementation 'org.crsh:crsh.shell.ssh:1.2.10'
 
-                runtime 'org.postgresql:postgresql:9.4.1207'
+                runtimeOnly 'org.postgresql:postgresql:9.4.1207'
 
-                testCompile 'junit:junit:4.12'
-                testCompile('com.stehno.vanilla:vanilla-core:0.2.0') {
-                    exclude group: 'org.codehaus.groovy', module: 'groovy-all'
-                }
+                testImplementation 'junit:junit:4.12'
             }
 
             $taskConfig
         """.stripIndent()
     }
 
-    private Collection<String> available(Collection<String> coords) {
+    private static Collection<String> available(Collection<String> coords) {
         coords.each {
             prepareHeadRequest(it, 200)
         }
         coords
     }
 
-    private Collection<String> unavailable(Collection<String> coords) {
+    private static Collection<String> unavailable(Collection<String> coords) {
         coords.each {
             prepareHeadRequest(it, 404)
         }
@@ -294,11 +305,15 @@ class CheckAvailabilityTaskSpec extends Specification {
         [group: parts[0], name: parts[1], version: parts[2]]
     }
 
-    private void prepareHeadRequest(String coordinate, int code) {
+    private static void prepareHeadRequest(String coordinate, int code) {
         def dep = coord(coordinate)
-        client.when(
-            org.mockserver.model.HttpRequest.request().withMethod('HEAD').withPath("/repo/${dep.group.replaceAll('\\.', '/')}/$dep.name/$dep.version/$dep.name-${dep.version}.jar"),
-            org.mockserver.matchers.Times.once()
-        ).respond(org.mockserver.model.HttpResponse.response().withStatusCode(code))
+        mockServer.when(
+                HttpRequest.request().withMethod('HEAD').withPath("/repo/${dep.group.replaceAll('\\.', '/')}/$dep.name/$dep.version/$dep.name-${dep.version}.jar"),
+                Times.once()
+        ).respond(HttpResponse.response().withStatusCode(code))
+    }
+
+    private static ClientAndServer startClientAndServer(int portNumber) {
+        new ClientAndServer(portNumber)
     }
 }
