@@ -20,8 +20,11 @@ import groovy.transform.Immutable
 import groovy.transform.TypeChecked
 import org.gradle.api.DefaultTask
 import org.gradle.api.artifacts.ResolvedDependency
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+
+import javax.inject.Inject
 
 import static java.lang.Boolean.FALSE
 
@@ -38,18 +41,21 @@ import static java.lang.Boolean.FALSE
  * property to "true". All dependencies will be checked before the build is failed (if any are missing).
  */
 @TypeChecked
-class CheckAvailabilityTask extends DefaultTask {
-
-    // FIXME: is there an official way to get input from a project variable or cli property
+abstract class CheckAvailabilityTask extends DefaultTask {
 
     @Input Collection<String> configurations = []
     @Input Collection<String> repoUrls = []
     @Input Collection<String> ignored = []
     @Input boolean failOnMissing = false
 
+    @Inject abstract ProviderFactory getProviders()
+
     CheckAvailabilityTask() {
         group = 'Verification'
         description = 'Checks the availability of the required dependencies against a specified artifact repository.'
+        // project.configurations is accessed at execution time, which is incompatible with the
+        // configuration cache. A full fix requires capturing dependency data at configuration time.
+        notCompatibleWithConfigurationCache('Accesses project.configurations at execution time')
     }
 
     @TaskAction void checkAvailability() {
@@ -91,7 +97,8 @@ class CheckAvailabilityTask extends DefaultTask {
     }
 
     private Collection<String> collectRepoUrls() {
-        project.hasProperty('repoUrls') ? ((project.property('repoUrls') as String).split(',') as Collection<String>) : repoUrls
+        def prop = providers.gradleProperty('repoUrls')
+        prop.present ? (prop.get().split(',') as Collection<String>) : repoUrls
     }
 
     static void collectDependencies(final Set<DependencyCoordinate> found, final ResolvedDependency dep) {

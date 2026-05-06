@@ -43,6 +43,9 @@ class CheckDependenciesTask extends DefaultTask {
     CheckDependenciesTask() {
         group = 'Verification'
         description = 'Checks the project dependencies for duplicate libraries with different versions.'
+        // project.configurations is accessed at execution time, which is incompatible with the
+        // configuration cache. A full fix requires capturing dependency data at configuration time.
+        notCompatibleWithConfigurationCache('Accesses project.configurations at execution time')
     }
 
     @TaskAction
