@@ -157,6 +157,128 @@ class CheckDependenciesTaskTest {
         assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
     }
 
+    @Test
+    void 'checkDependencies: with all duplicates ignored'() {
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("all-ignored").toFile()).build()
+
+        project.apply plugin: 'java'
+        project.apply plugin: DependencyCheckerPlugin
+
+        project.repositories {
+            mavenCentral()
+        }
+
+        project.dependencies {
+            implementation 'commons-io:commons-io:2.4'
+            implementation 'commons-io:commons-io:2.3'
+
+            testImplementation 'junit:junit:4.12'
+            testImplementation 'junit:junit:4.10'
+        }
+
+        project.checkDependencies {
+            ignored = ['commons-io:commons-io', 'junit:junit']
+            resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
+        }
+
+        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+
+        assert !TestResultListener.hasDuplicates()
+    }
+
+    @Test
+    void 'checkDependencies: with partially ignored duplicates'() {
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("partial-ignored").toFile()).build()
+
+        project.apply plugin: 'java'
+        project.apply plugin: DependencyCheckerPlugin
+
+        project.repositories {
+            mavenCentral()
+        }
+
+        project.dependencies {
+            implementation 'commons-io:commons-io:2.4'
+            implementation 'commons-io:commons-io:2.3'  // ignored
+
+            testImplementation 'junit:junit:4.12'
+            testImplementation 'junit:junit:4.10'       // not ignored — should still be detected
+        }
+
+        project.checkDependencies {
+            ignored = ['commons-io:commons-io']
+            resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
+        }
+
+        try {
+            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+            Assertions.fail()
+        } catch (RuntimeException rex) {
+            // expected
+        }
+
+        assert TestResultListener.hasDuplicates()
+        assert TestResultListener.duplicatesFor('implementation').size() == 0
+        assert TestResultListener.duplicatesFor('testImplementation').size() == 1
+        assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
+    }
+
+    @Test
+    void 'checkDependencies: with multiple occurrences of same duplicate key'() {
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("multi-dup").toFile()).build()
+
+        project.apply plugin: 'java'
+        project.apply plugin: DependencyCheckerPlugin
+
+        project.repositories {
+            mavenCentral()
+        }
+
+        project.dependencies {
+            // three declarations of the same group:name — expect two duplicates recorded
+            implementation 'commons-io:commons-io:2.4'
+            implementation 'commons-io:commons-io:2.3'
+            implementation 'commons-io:commons-io:2.2'
+        }
+
+        project.checkDependencies {
+            resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
+        }
+
+        try {
+            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+            Assertions.fail()
+        } catch (RuntimeException rex) {
+            // expected
+        }
+
+        assert TestResultListener.hasDuplicates()
+        assert TestResultListener.duplicatesFor('implementation').size() == 2
+        assert TestResultListener.duplicatesFor('implementation').every { it == 'commons-io:commons-io' }
+    }
+
+    @Test
+    void 'checkDependencies: null resultListenerClass produces null listener without error'() {
+        Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("null-listener").toFile()).build()
+
+        project.apply plugin: 'java'
+        project.apply plugin: DependencyCheckerPlugin
+
+        project.repositories {
+            mavenCentral()
+        }
+
+        // Setting resultListenerClass to null exercises the ternary false branch:
+        // ResultListener resultListener = resultListenerClass ? ... : null
+        project.checkDependencies {
+            resultListenerClass = null
+        }
+
+        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+        // No duplicates, null listener — null-safe ?.duplicated call is never triggered,
+        // but the null assignment path at line 55 is covered.
+    }
+
     @Test @Disabled // FIXME: put this back when the check funx is back in
     void 'check depends on checkDependencies'() {
         Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("dependency").toFile()).build()

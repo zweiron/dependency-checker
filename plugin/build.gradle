@@ -2,7 +2,7 @@ plugins {
     id 'groovy'
     id 'java-gradle-plugin'
     id 'maven-publish'
-    //id 'jacoco'
+    id 'jacoco'
 }
 
 group = 'com.stehno.gradle'

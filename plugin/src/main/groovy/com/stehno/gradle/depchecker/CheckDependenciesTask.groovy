@@ -17,35 +17,36 @@ package com.stehno.gradle.depchecker
 
 import groovy.transform.TypeChecked
 import org.gradle.api.DefaultTask
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 
-/**
- * Gradle task used to check the dependencies of a project to ensure that there are no duplicate dependencies (with different
- * versions).
- *
- * If duplications are found - the build will fail.
- *
- * The task will accept the following inputs:
- *
- * <b>configurations</b> - a list of configuration names used to limit the dependency check. All configurations are checked if
- * this is not specified.
- */
 @TypeChecked
-class CheckDependenciesTask extends DefaultTask {
+abstract class CheckDependenciesTask extends DefaultTask {
 
-    // TODO: should I do (or allow) deep checking (like the other task)?
+    /** Configuration names to scan; empty means all configurations. */
+    @Input abstract ListProperty<String> getConfigurations()
 
-    @Input Collection<String> ignored = []
-    @Input Collection<String> configurations = []
-    @Input Class<? extends ResultListener> resultListenerClass = NoOpResultListener
+    /** Coordinates in "group:name" form to skip. */
+    @Input abstract ListProperty<String> getIgnored()
+
+    /**
+     * Pre-computed map of configuration name → comma-joined "group:name" dependency keys, wired
+     * by DependencyCheckerPlugin at configuration time so the task action never accesses project.
+     */
+    @Input abstract MapProperty<String, String> getConfigDeps()
+
+    /** Test-only hook; not a real task input. */
+    @Internal Class<? extends ResultListener> resultListenerClass = NoOpResultListener
 
     CheckDependenciesTask() {
         group = 'Verification'
         description = 'Checks the project dependencies for duplicate libraries with different versions.'
-        // project.configurations is accessed at execution time, which is incompatible with the
-        // configuration cache. A full fix requires capturing dependency data at configuration time.
-        notCompatibleWithConfigurationCache('Accesses project.configurations at execution time')
+        configurations.convention([])
+        ignored.convention([])
+        configDeps.convention([:])
     }
 
     @TaskAction
@@ -53,19 +54,15 @@ class CheckDependenciesTask extends DefaultTask {
         DependencyCheckResults results = new DependencyCheckResults()
         ResultListener resultListener = resultListenerClass ? resultListenerClass.getDeclaredConstructor().newInstance() : null
 
-        Set<String> deps = [] as Set<String>
-
-        (configurations ?: project.configurations.names).each { String cname ->
-            project.configurations.getByName(cname).dependencies.each { d ->
-                String key = "${d.group}:${d.name}"
-
-                if (!ignored.contains(key) && !deps.add(key)) {
+        configDeps.get().each { String cname, String depsStr ->
+            List<String> deps = depsStr ? depsStr.split(',').toList() : []
+            Set<String> seen = [] as Set<String>
+            deps.each { String key ->
+                if (!ignored.get().contains(key) && !seen.add(key)) {
                     results[cname] = key
                     resultListener?.duplicated(cname, key)
                 }
             }
-
-            deps.clear()
         }
 
         if (results.hasDuplications()) {
