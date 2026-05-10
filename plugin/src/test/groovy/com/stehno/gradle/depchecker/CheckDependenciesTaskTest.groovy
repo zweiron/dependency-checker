@@ -279,7 +279,7 @@ class CheckDependenciesTaskTest {
         // but the null assignment path at line 55 is covered.
     }
 
-    @Test @Disabled // FIXME: put this back when the check funx is back in
+    @Test
     void 'check depends on checkDependencies'() {
         Project project = ProjectBuilder.builder().withProjectDir(projectDir.resolve("dependency").toFile()).build()
 
