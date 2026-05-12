@@ -34,8 +34,9 @@ class DependencyCheckerPlugin implements Plugin<Project> {
 
                 configNames.collectEntries { String configName ->
                     String deps = project.configurations.names.contains(configName)
-                        ? project.configurations.named(configName).get().dependencies.collect { d -> "${d.group}:${d.name}" }.join(',')
-                        : ''
+                            ? project.configurations.named(configName).get().dependencies.collect { d ->
+                                "${d.group}:${d.name}"}.join(',')
+                            : ''
                     [(configName): deps]
                 } as Map<String, String>
             })
@@ -66,7 +67,9 @@ class DependencyCheckerPlugin implements Plugin<Project> {
         }
 
         project.plugins.withId('java') {
-            project.tasks.named('check').configure { it.dependsOn(project.tasks.named('checkDependencies')) }
+            project.tasks.named('check').configure {
+                it.dependsOn(project.tasks.named('checkDependencies'))
+            }
         }
     }
 }
