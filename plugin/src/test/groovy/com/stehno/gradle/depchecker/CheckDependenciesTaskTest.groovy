@@ -19,7 +19,6 @@ import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
@@ -53,7 +52,7 @@ class CheckDependenciesTaskTest {
             resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
         }
 
-        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+        (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
@@ -72,7 +71,7 @@ class CheckDependenciesTaskTest {
         project.dependencies {
         }
 
-        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+        (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
@@ -106,7 +105,7 @@ class CheckDependenciesTaskTest {
             resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
         }
 
-        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+        (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
@@ -143,7 +142,7 @@ class CheckDependenciesTaskTest {
         }
 
         try {
-            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+            (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
             Assert.fail()
         } catch (RuntimeException rex){
             // success
@@ -181,7 +180,7 @@ class CheckDependenciesTaskTest {
             resultListenerClass = 'com.stehno.gradle.depchecker.TestResultListener'
         }
 
-        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+        (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
         assert !TestResultListener.hasDuplicates()
     }
@@ -211,7 +210,7 @@ class CheckDependenciesTaskTest {
         }
 
         try {
-            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+            (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
             Assertions.fail()
         } catch (RuntimeException rex) {
             // expected
@@ -246,7 +245,7 @@ class CheckDependenciesTaskTest {
         }
 
         try {
-            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+            (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
             Assertions.fail()
         } catch (RuntimeException rex) {
             // expected
@@ -274,7 +273,7 @@ class CheckDependenciesTaskTest {
             resultListenerClass = null
         }
 
-        (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+        (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
         // No duplicates, null listener — null-safe ?.duplicated call is never triggered,
         // but the null assignment path at line 55 is covered.
     }
@@ -286,7 +285,9 @@ class CheckDependenciesTaskTest {
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
-        assert project.tasks['check'].dependsOn.contains(project.tasks['checkDependencies'])
+        assert project.tasks.named('check').get().taskDependencies
+            .getDependencies(project.tasks.named('check').get())
+            .contains(project.tasks.named('checkDependencies').get())
     }
 
     @Test
@@ -322,7 +323,7 @@ class CheckDependenciesTaskTest {
         }
 
         try {
-            (project.tasks.getByName('checkDependencies') as CheckDependenciesTask).checkDependencies()
+            (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
             Assert.fail()
         } catch (RuntimeException rex){
             // success

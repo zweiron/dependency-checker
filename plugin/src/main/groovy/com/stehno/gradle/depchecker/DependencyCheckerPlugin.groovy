@@ -65,5 +65,9 @@ class DependencyCheckerPlugin implements Plugin<Project> {
                 coords.collect { it.toString() }
             })
         }
+
+        project.plugins.withId('java') {
+            project.tasks.named('check').configure { it.dependsOn(project.tasks.named('checkDependencies')) }
+        }
     }
 }
