@@ -26,6 +26,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation 'org.assertj:assertj-core:3.27.7'
 
     testImplementation ('org.spockframework:spock-core:2.4-groovy-3.0')
     testImplementation('org.mock-server:mockserver-junit-jupiter-no-dependencies:5.14.0')

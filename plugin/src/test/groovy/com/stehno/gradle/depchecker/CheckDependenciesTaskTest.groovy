@@ -24,6 +24,8 @@ import org.junit.jupiter.api.io.TempDir
 
 import java.nio.file.Path
 
+import static org.assertj.core.api.Assertions.*
+
 class CheckDependenciesTaskTest {
 
     @TempDir
@@ -54,7 +56,7 @@ class CheckDependenciesTaskTest {
 
         (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
-        assert !TestResultListener.hasDuplicates()
+        assertThat(TestResultListener.hasDuplicates()).isFalse()
     }
 
     @Test
@@ -73,7 +75,7 @@ class CheckDependenciesTaskTest {
 
         (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
-        assert !TestResultListener.hasDuplicates()
+        assertThat(TestResultListener.hasDuplicates()).isFalse()
     }
 
     @Test
@@ -107,7 +109,7 @@ class CheckDependenciesTaskTest {
 
         (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
-        assert !TestResultListener.hasDuplicates()
+        assertThat(TestResultListener.hasDuplicates()).isFalse()
     }
 
     @Test
@@ -148,12 +150,10 @@ class CheckDependenciesTaskTest {
             // success
         }
 
-        assert TestResultListener.hasDuplicates()
-        assert TestResultListener.duplicatesFor('implementation').size() == 1
-        assert TestResultListener.duplicatesFor('implementation').contains('commons-io:commons-io')
-        assert TestResultListener.duplicatesFor('runtimeOnly').size() == 0
-        assert TestResultListener.duplicatesFor('testImplementation').size() == 1
-        assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
+        assertThat(TestResultListener.hasDuplicates()).isTrue()
+        assertThat(TestResultListener.duplicatesFor('implementation')).containsOnly('commons-io:commons-io')
+        assertThat(TestResultListener.duplicatesFor('runtimeOnly')).isEmpty()
+        assertThat(TestResultListener.duplicatesFor('testImplementation')).containsOnly('junit:junit')
     }
 
     @Test
@@ -182,7 +182,7 @@ class CheckDependenciesTaskTest {
 
         (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
 
-        assert !TestResultListener.hasDuplicates()
+        assertThat(TestResultListener.hasDuplicates()).isFalse()
     }
 
     @Test
@@ -216,10 +216,10 @@ class CheckDependenciesTaskTest {
             // expected
         }
 
-        assert TestResultListener.hasDuplicates()
-        assert TestResultListener.duplicatesFor('implementation').size() == 0
-        assert TestResultListener.duplicatesFor('testImplementation').size() == 1
-        assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
+        assertThat(TestResultListener.hasDuplicates()).isTrue()
+        assertThat(TestResultListener.duplicatesFor('implementation')).isEmpty()
+        assertThat(TestResultListener.duplicatesFor('runtimeOnly')).isEmpty()
+        assertThat(TestResultListener.duplicatesFor('testImplementation')).containsOnly('junit:junit')
     }
 
     @Test
@@ -251,9 +251,11 @@ class CheckDependenciesTaskTest {
             // expected
         }
 
-        assert TestResultListener.hasDuplicates()
-        assert TestResultListener.duplicatesFor('implementation').size() == 2
-        assert TestResultListener.duplicatesFor('implementation').every { it == 'commons-io:commons-io' }
+        assertThat(TestResultListener.hasDuplicates()).isTrue()
+        assertThat(TestResultListener.duplicatesFor('implementation'))
+                .containsExactly('commons-io:commons-io','commons-io:commons-io')
+        assertThat(TestResultListener.duplicatesFor('runtimeOnly')).isEmpty()
+        assertThat(TestResultListener.duplicatesFor('testImplementation')).isEmpty()
     }
 
     @Test
@@ -285,8 +287,8 @@ class CheckDependenciesTaskTest {
         project.apply plugin: 'java'
         project.apply plugin: DependencyCheckerPlugin
 
-        assert project.tasks.named('check').get().taskDependencies
-            .getDependencies(project.tasks.named('check').get())
+        assertThat(project.tasks.named('check').get().taskDependencies
+            .getDependencies(project.tasks.named('check').get()))
             .contains(project.tasks.named('checkDependencies').get())
     }
 
@@ -324,15 +326,14 @@ class CheckDependenciesTaskTest {
 
         try {
             (project.tasks.named('checkDependencies').get() as CheckDependenciesTask).checkDependencies()
-            Assert.fail()
+            fail()
         } catch (RuntimeException rex){
             // success
         }
 
-        Assertions.assertTrue(TestResultListener.hasDuplicates())
-        assert TestResultListener.duplicatesFor('implementation').size() == 0
-        assert TestResultListener.duplicatesFor('runtimeOnly').size() == 0
-        assert TestResultListener.duplicatesFor('testImplementation').size() == 1
-        assert TestResultListener.duplicatesFor('testImplementation').contains('junit:junit')
+        assertThat(TestResultListener.hasDuplicates()).isTrue()
+        assertThat(TestResultListener.duplicatesFor('implementation')).isEmpty()
+        assertThat(TestResultListener.duplicatesFor('runtimeOnly')).isEmpty()
+        assertThat(TestResultListener.duplicatesFor('testImplementation')).containsOnly('junit:junit')
     }
 }

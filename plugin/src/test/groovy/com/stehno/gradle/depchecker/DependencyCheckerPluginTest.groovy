@@ -22,6 +22,8 @@ import org.junit.jupiter.api.io.TempDir
 
 import java.nio.file.Path
 
+import static org.assertj.core.api.Assertions.*
+
 class DependencyCheckerPluginTest {
 
     @TempDir
@@ -34,20 +36,20 @@ class DependencyCheckerPluginTest {
     @Test
     void 'apply: registers checkDependencies task'() {
         def project = buildProject('reg-check-deps')
-        assert project.tasks.findByName('checkDependencies') != null
+        assertThat(project.tasks.names).contains('checkDependencies')
     }
 
     @Test
     void 'apply: registers checkAvailability task'() {
         def project = buildProject('reg-check-avail')
-        assert project.tasks.findByName('checkAvailability') != null
+        assertThat(project.tasks.names).contains('checkAvailability')
     }
 
     @Test
     void 'apply: both tasks are placed in the Verification group'() {
         def project = buildProject('groups')
-        assert project.tasks.getByName('checkDependencies').group == 'Verification'
-        assert project.tasks.getByName('checkAvailability').group  == 'Verification'
+        assertThat(project.tasks.named('checkDependencies').get().getGroup()).isEqualTo('Verification')
+        assertThat(project.tasks.named('checkAvailability').get().getGroup()).isEqualTo('Verification')
     }
 
     @Test
@@ -58,8 +60,7 @@ class DependencyCheckerPluginTest {
             .build()
         project.apply plugin: DependencyCheckerPlugin
 
-        assert project.tasks.findByName('checkDependencies') != null
-        assert project.tasks.findByName('checkAvailability') != null
+        assertThat(project.tasks.names).contains('checkDependencies').contains('checkAvailability')
     }
 
     // -------------------------------------------------------------------------
@@ -74,12 +75,11 @@ class DependencyCheckerPluginTest {
             }
         }
 
-        CheckDependenciesTask task = project.tasks.getByName('checkDependencies') as CheckDependenciesTask
+        CheckDependenciesTask task = project.tasks.named('checkDependencies').get() as CheckDependenciesTask
         // task.configurations defaults to [] (empty), so all config names must appear in the map
         Map<String, String> deps = task.configDeps.get()
 
-        assert deps.containsKey('implementation')
-        assert deps.containsKey('testImplementation')
+        assertThat(deps).containsKey('implementation').containsKey('testImplementation')
     }
 
     @Test
@@ -91,15 +91,14 @@ class DependencyCheckerPluginTest {
             }
         }
 
-        CheckDependenciesTask task = project.tasks.getByName('checkDependencies') as CheckDependenciesTask
+        CheckDependenciesTask task = project.tasks.named('checkDependencies').get() as CheckDependenciesTask
         project.checkDependencies {
             configurations = ['implementation']
         }
 
         Map<String, String> deps = task.configDeps.get()
 
-        assert deps.keySet() == ['implementation'] as Set
-        assert !deps.containsKey('testImplementation')
+        assertThat(deps).containsOnlyKeys('implementation')
     }
 
     @Test
@@ -110,14 +109,14 @@ class DependencyCheckerPluginTest {
             }
         }
 
-        CheckDependenciesTask task = project.tasks.getByName('checkDependencies') as CheckDependenciesTask
+        CheckDependenciesTask task = project.tasks.named('checkDependencies').get() as CheckDependenciesTask
         project.checkDependencies {
             configurations = ['implementation']
         }
 
         Map<String, String> deps = task.configDeps.get()
 
-        assert deps['implementation'] == 'commons-io:commons-io'
+        assertThat(deps).containsOnly(entry('implementation','commons-io:commons-io'))
     }
 
     @Test
@@ -129,7 +128,7 @@ class DependencyCheckerPluginTest {
             }
         }
 
-        CheckDependenciesTask task = project.tasks.getByName('checkDependencies') as CheckDependenciesTask
+        CheckDependenciesTask task = project.tasks.named('checkDependencies').get() as CheckDependenciesTask
         project.checkDependencies {
             configurations = ['implementation']
         }
@@ -137,37 +136,35 @@ class DependencyCheckerPluginTest {
         Map<String, String> deps = task.configDeps.get()
         List<String> keys = deps['implementation'].split(',').toList()
 
-        assert keys.size() == 2
-        assert 'commons-io:commons-io' in keys
-        assert 'junit:junit' in keys
+        assertThat(keys).containsOnly('commons-io:commons-io', 'junit:junit').hasSize(2)
     }
 
     @Test
     void 'configDeps: config with no dependencies maps to empty string'() {
         def project = buildProject('empty-config')  // no dependencies declared
 
-        CheckDependenciesTask task = project.tasks.getByName('checkDependencies') as CheckDependenciesTask
+        CheckDependenciesTask task = project.tasks.named('checkDependencies').get() as CheckDependenciesTask
         project.checkDependencies {
             configurations = ['implementation']
         }
 
         Map<String, String> deps = task.configDeps.get()
 
-        assert deps['implementation'] == ''
+        assertThat(deps).containsExactly(entry('implementation',''))
     }
 
     @Test
     void 'configDeps: unknown configuration name maps to empty string'() {
         def project = buildProject('unknown-config')
 
-        CheckDependenciesTask task = project.tasks.getByName('checkDependencies') as CheckDependenciesTask
+        CheckDependenciesTask task = project.tasks.named('checkDependencies').get() as CheckDependenciesTask
         project.checkDependencies {
             configurations = ['doesNotExist']
         }
 
         Map<String, String> deps = task.configDeps.get()
 
-        assert deps['doesNotExist'] == ''
+        assertThat(deps).containsExactly(entry('doesNotExist',''))
     }
 
     // -------------------------------------------------------------------------
@@ -182,7 +179,7 @@ class DependencyCheckerPluginTest {
             .build()
         project.apply plugin: DependencyCheckerPlugin
 
-        CheckAvailabilityTask task = project.tasks.getByName('checkAvailability') as CheckAvailabilityTask
+        CheckAvailabilityTask task = project.tasks.named('checkAvailability').get() as CheckAvailabilityTask
 
         assert task.dependencyCoordinates.get() == []
     }
@@ -197,11 +194,11 @@ class DependencyCheckerPluginTest {
             configurations = ['compileClasspath']   // non-empty → uses explicit list
         }
 
-        CheckAvailabilityTask task = project.tasks.getByName('checkAvailability') as CheckAvailabilityTask
+        CheckAvailabilityTask task = project.tasks.named('checkAvailability').get() as CheckAvailabilityTask
 
         // No external deps declared, so resolution returns nothing but the root project
         // component which is filtered by instanceof ModuleComponentIdentifier → empty list
-        assert task.dependencyCoordinates.get() == []
+        assertThat(task.dependencyCoordinates.get()).isEmpty()
     }
 
     @Test
@@ -211,9 +208,9 @@ class DependencyCheckerPluginTest {
         // which is filtered out by the instanceof ModuleComponentIdentifier check.
         def project = buildProject('dc-no-deps')  // java applied, no dependencies
 
-        CheckAvailabilityTask task = project.tasks.getByName('checkAvailability') as CheckAvailabilityTask
+        CheckAvailabilityTask task = project.tasks.named('checkAvailability').get() as CheckAvailabilityTask
 
-        assert task.dependencyCoordinates.get() == []
+        assertThat(task.dependencyCoordinates.get()).isEmpty()
     }
 
     // -------------------------------------------------------------------------

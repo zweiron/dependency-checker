@@ -18,6 +18,8 @@ package com.stehno.gradle.depchecker
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+import static org.assertj.core.api.Assertions.*
+
 class DependencyCheckResultsTest {
 
     private DependencyCheckResults results
@@ -31,19 +33,19 @@ class DependencyCheckResultsTest {
 
     @Test
     void 'hasDuplications: returns false when empty'() {
-        assert !results.hasDuplications()
+        assertThat(results.hasDuplications()).isFalse()
     }
 
     @Test
     void 'count: returns 0 when empty'() {
-        assert results.count() == 0
+        assertThat(results.count()).isEqualTo(0)
     }
 
     @Test
     void 'each: does not iterate when empty'() {
         int calls = 0
         results.each { String config, String module -> calls++ }
-        assert calls == 0
+        assertThat(calls).isEqualTo(0)
     }
 
     // --- putAt ---
@@ -51,22 +53,22 @@ class DependencyCheckResultsTest {
     @Test
     void 'putAt: first insert for a config creates a new entry'() {
         results['implementation'] = 'commons-io:commons-io'
-        assert results.hasDuplications()
-        assert results.count() == 1
+        assertThat(results.hasDuplications()).isTrue()
+        assertThat(results.count()).isEqualTo(1)
     }
 
     @Test
     void 'putAt: subsequent insert for the same config appends'() {
         results['implementation'] = 'commons-io:commons-io'
         results['implementation'] = 'junit:junit'
-        assert results.count() == 2
+        assertThat(results.count()).isEqualTo(2)
     }
 
     @Test
     void 'putAt: inserts into different configs are tracked independently'() {
         results['implementation'] = 'commons-io:commons-io'
         results['testImplementation'] = 'junit:junit'
-        assert results.count() == 2
+        assertThat(results.count()).isEqualTo(2)
     }
 
     // --- hasDuplications ---
@@ -74,7 +76,7 @@ class DependencyCheckResultsTest {
     @Test
     void 'hasDuplications: returns true after any insert'() {
         results['runtimeOnly'] = 'org.slf4j:slf4j-api'
-        assert results.hasDuplications()
+        assertThat(results.hasDuplications()).isTrue()
     }
 
     // --- count ---
@@ -83,7 +85,7 @@ class DependencyCheckResultsTest {
     void 'count: sums across multiple values in one config'() {
         results['implementation'] = 'a:a'
         results['implementation'] = 'b:b'
-        assert results.count() == 2
+        assertThat(results.count()).isEqualTo(2)
     }
 
     @Test
@@ -91,7 +93,7 @@ class DependencyCheckResultsTest {
         results['implementation'] = 'a:a'
         results['implementation'] = 'b:b'
         results['testImplementation'] = 'c:c'
-        assert results.count() == 3
+        assertThat(results.count()).isEqualTo(3)
     }
 
     // --- each ---
@@ -103,8 +105,7 @@ class DependencyCheckResultsTest {
         List<List<String>> calls = []
         results.each { String config, String module -> calls << [config, module] }
 
-        assert calls.size() == 1
-        assert calls[0] == ['runtimeOnly', 'org.postgresql:postgresql']
+        assertThat(calls).containsOnly(['runtimeOnly', 'org.postgresql:postgresql'])
     }
 
     @Test
@@ -117,8 +118,7 @@ class DependencyCheckResultsTest {
             visited.computeIfAbsent(config) { [] } << module
         }
 
-        assert visited['implementation'].size() == 2
-        assert visited['implementation'].containsAll(['commons-io:commons-io', 'junit:junit'])
+        assertThat(visited).containsExactly(entry('implementation',['commons-io:commons-io', 'junit:junit']))
     }
 
     @Test
@@ -132,8 +132,7 @@ class DependencyCheckResultsTest {
             visited.computeIfAbsent(config) { [] } << module
         }
 
-        assert visited['implementation'] == ['commons-io:commons-io']
-        assert visited['testImplementation'].size() == 2
-        assert visited['testImplementation'].containsAll(['junit:junit', 'org.slf4j:slf4j-api'])
+        assertThat(visited).containsExactly(entry('implementation', ['commons-io:commons-io']),
+                entry('testImplementation',['junit:junit', 'org.slf4j:slf4j-api']))
     }
 }
