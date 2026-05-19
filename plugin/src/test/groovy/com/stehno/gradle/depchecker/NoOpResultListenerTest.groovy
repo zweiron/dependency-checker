@@ -15,23 +15,15 @@
  */
 package com.stehno.gradle.depchecker
 
-import org.gradle.api.Plugin
-import org.gradle.api.Project
+import org.junit.jupiter.api.Test
 
-/**
- * Gradle plugin providing additional dependency management and inspection tasks.
- */
-class DependencyCheckerPlugin implements Plugin<Project> {
+class NoOpResultListenerTest {
 
-    @Override
-    void apply(Project project) {
-        project.task 'checkDependencies', type: CheckDependenciesTask
-        project.task 'checkAvailability', type: CheckAvailabilityTask
-
-        // FIXME: this does not seem to work right - fix it
-        //        // make the dependency check part of the overall check
-        //        project.getTasksByName(CHECK_TASK_NAME, true)?.each { Task t ->
-        //            t.dependsOn checkDepTask
-        //        }
+    @Test
+    void 'duplicated: completes silently without throwing'() {
+        // NoOpResultListener is the production default; this test simply verifies the
+        // method body executes without error and that the class implements ResultListener.
+        ResultListener listener = new NoOpResultListener()
+        listener.duplicated('implementation', 'commons-io:commons-io')
     }
 }

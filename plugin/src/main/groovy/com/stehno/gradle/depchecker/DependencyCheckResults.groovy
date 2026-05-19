@@ -46,6 +46,6 @@ class DependencyCheckResults {
     }
 
     int count() {
-        duplicates.values().collect { it.size() }.sum() as int
+        duplicates.values().collect { it.size() }.sum(0) as int
     }
 }

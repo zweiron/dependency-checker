@@ -19,9 +19,12 @@ import groovy.transform.CompileStatic
 import groovy.transform.Immutable
 import groovy.transform.TypeChecked
 import org.gradle.api.DefaultTask
-import org.gradle.api.artifacts.ResolvedDependency
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+
+import javax.inject.Inject
 
 import static java.lang.Boolean.FALSE
 
@@ -38,32 +41,45 @@ import static java.lang.Boolean.FALSE
  * property to "true". All dependencies will be checked before the build is failed (if any are missing).
  */
 @TypeChecked
-class CheckAvailabilityTask extends DefaultTask {
+abstract class CheckAvailabilityTask extends DefaultTask {
 
-    // FIXME: is there an official way to get input from a project variable or cli property
+    /** Configuration names to scan; empty means all resolvable configurations. */
+    @Input abstract ListProperty<String> getConfigurations()
 
-    @Input Collection<String> configurations = []
-    @Input Collection<String> repoUrls = []
-    @Input Collection<String> ignored = []
+    /** Remote Maven repo base URLs to check against. Also settable via -PrepoUrls=url1,url2 on the CLI. */
+    @Input abstract ListProperty<String> getRepoUrls()
+
+    /** Coordinates in "group:name:version" form to skip. */
+    @Input abstract ListProperty<String> getIgnored()
+
     @Input boolean failOnMissing = false
+
+    /**
+     * Pre-computed transitive dependency coordinates in "group:name:version" form, wired by
+     * DependencyCheckerPlugin at configuration time so the task action never accesses project.
+     */
+    @Input abstract ListProperty<String> getDependencyCoordinates()
+
+    @Inject abstract ProviderFactory getProviders()
 
     CheckAvailabilityTask() {
         group = 'Verification'
         description = 'Checks the availability of the required dependencies against a specified artifact repository.'
+        configurations.convention([])
+        repoUrls.convention([])
+        ignored.convention([])
+        dependencyCoordinates.convention([])
     }
 
     @TaskAction void checkAvailability() {
         Collection<String> activeRepos = collectRepoUrls()
         if (activeRepos) {
-            Set<DependencyCoordinate> coords = [] as Set<DependencyCoordinate>
+            Set<DependencyCoordinate> coords = dependencyCoordinates.get().collect { String s ->
+                def parts = s.split(':')
+                new DependencyCoordinate(parts[0], parts[1], parts[2])
+            } as Set<DependencyCoordinate>
 
-            (configurations ?: project.configurations.names).each { String cname ->
-                project.configurations.getByName(cname).resolvedConfiguration.firstLevelModuleDependencies.each { ResolvedDependency dep ->
-                    collectDependencies(coords, dep)
-                }
-            }
-
-            Map<Boolean, List<DependencyCoordinate>> results = coords.findAll { !ignored.contains(it as String) }.groupBy { c ->
+            Map<Boolean, List<DependencyCoordinate>> results = coords.findAll { !ignored.get().contains(it as String) }.groupBy { c ->
                 HttpHeadClient.exists(activeRepos, c)
             }
 
@@ -78,7 +94,6 @@ class CheckAvailabilityTask extends DefaultTask {
             }
 
             if (results[FALSE] && failOnMissing) {
-                // TODO: is this the best way to fail a build?
                 throw new RuntimeException('One or more dependencies were not resolvable from the configured repo urls.')
             }
 
@@ -88,15 +103,10 @@ class CheckAvailabilityTask extends DefaultTask {
     }
 
     private Collection<String> collectRepoUrls() {
-        project.hasProperty('repoUrls') ? ((project.property('repoUrls') as String).split(',') as Collection<String>) : repoUrls
+        def prop = providers.gradleProperty('repoUrls')
+        prop.present ? (prop.get().split(',') as Collection<String>) : repoUrls.get()
     }
 
-    static void collectDependencies(final Set<DependencyCoordinate> found, final ResolvedDependency dep) {
-        found << DependencyCoordinate.from(dep)
-        dep.children.each { child ->
-            collectDependencies(found, child)
-        }
-    }
 }
 
 @Immutable
@@ -104,10 +114,6 @@ class DependencyCoordinate {
     String group
     String name
     String version
-
-    static DependencyCoordinate from(ResolvedDependency dep) {
-        new DependencyCoordinate(dep.moduleGroup, dep.moduleName, dep.moduleVersion)
-    }
 
     @Override
     String toString() { "$group:$name:$version" }
@@ -123,13 +129,6 @@ class DependencyCoordinate {
 @CompileStatic
 class HttpHeadClient {
 
-    /**
-     * Checks whether or not the given dependency coordinate exists on at least one of the specified repo URLs.
-     *
-     * @param baseUrls the base repo URLs
-     * @param coordinate the dependency coordinate being tested
-     * @return true if the dependency is found at one of the repo URLs, false if not.
-     */
     static boolean exists(final Collection<String> baseUrls, final DependencyCoordinate coordinate) {
         baseUrls.any { u ->
             check("${u}/${coordinate.toPathSuffix()}")
@@ -139,12 +138,11 @@ class HttpHeadClient {
     private static boolean check(final String url) {
         HttpURLConnection con = null
         try {
-            con = (HttpURLConnection) new URL(url).openConnection()
+            con = (HttpURLConnection) new URI(url).toURL().openConnection()
             con.requestMethod = 'HEAD'
             con.responseCode == 200
 
         } catch (Exception ex) {
-            // TODO: something better?
             ex.printStackTrace()
             false
 
