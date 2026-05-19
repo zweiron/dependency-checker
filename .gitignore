@@ -42,6 +42,7 @@
 .idea/*.iml
 .idea/modules
 *.iml
+*.iws
 *.ipr
 
 # CMake
