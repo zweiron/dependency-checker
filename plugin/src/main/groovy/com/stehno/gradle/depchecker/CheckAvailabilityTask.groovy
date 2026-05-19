@@ -138,7 +138,7 @@ class HttpHeadClient {
     private static boolean check(final String url) {
         HttpURLConnection con = null
         try {
-            con = (HttpURLConnection) new URL(url).openConnection()
+            con = (HttpURLConnection) new URI(url).toURL().openConnection()
             con.requestMethod = 'HEAD'
             con.responseCode == 200
 

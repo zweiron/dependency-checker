@@ -1,7 +1,7 @@
 plugins {
     id 'groovy'
     id 'java-gradle-plugin'
-    id 'maven-publish'
+    id 'com.gradle.plugin-publish' version '2.1.1'
     id 'jacoco'
 }
 
@@ -16,14 +16,6 @@ java {
 
 sourceSets {
     functionalTest {
-        groovy {
-            srcDir file('src/functionalTest/groovy')
-        }
-        resources {
-            srcDir file('src/functionalTest/resources')
-        }
-        compileClasspath += sourceSets.main.output
-        runtimeClasspath += output + compileClasspath
     }
 }
 
@@ -34,6 +26,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:6.0.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation 'org.assertj:assertj-core:3.27.7'
 
     testImplementation ('org.spockframework:spock-core:2.4-groovy-3.0')
     testImplementation('org.mock-server:mockserver-junit-jupiter-no-dependencies:5.14.0')
@@ -54,25 +47,6 @@ tasks.named('test') {
     // Use JUnit Jupiter for unit tests.
     useJUnitPlatform()
 }
-
-/*license {
-    header rootProject.file('license_header.txt')
-    ext.year = Calendar.instance.get(Calendar.YEAR)
-}*/
-
-/*pluginBundle {
-    website = 'http://cjstehno.github.io/dependency-checker/'
-    vcsUrl = 'https://github.com/cjstehno/dependency-checker'
-    description = 'Gradle plugin to aid in managing dependencies.'
-    tags = ['gradle', 'groovy']
-
-    plugins {
-        dependencyCheckerPlugin {
-            id = 'com.stehno.gradle.dependency-checker'
-            displayName = 'Gradle Dependency Checker Plugin'
-        }
-    }
-}*/
 
 processResources {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
+import static org.assertj.core.api.Assertions.*
+
 /**
  * HttpHeadClient is @CompileStatic so Groovy metaclass mocking cannot intercept
  * calls within it. These tests use JDK's built-in com.sun.net.httpserver.HttpServer
@@ -55,21 +57,21 @@ class HttpHeadClientTest {
     void 'exists: returns true when server responds 200'() {
         respondWith(200)
 
-        assert HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)
+        assertThat(HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)).isTrue()
     }
 
     @Test
     void 'exists: returns false when server responds 404'() {
         respondWith(404)
 
-        assert !HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)
+        assertThat(HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)).isFalse()
     }
 
     @Test
     void 'exists: returns false when server responds 500'() {
         respondWith(500)
 
-        assert !HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)
+        assertThat(HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)).isFalse()
     }
 
     // --- exists() with empty or exhausted URL list ---
@@ -77,17 +79,15 @@ class HttpHeadClientTest {
     @Test
     void 'exists: returns false for empty base URL list'() {
         // any() on an empty collection is false — no HTTP call is made
-        assert !HttpHeadClient.exists([], COORD)
+        assertThat(HttpHeadClient.exists([], COORD)).isFalse()
     }
 
     @Test
     void 'exists: returns false when all URLs respond non-200'() {
         respondWith(404)
 
-        assert !HttpHeadClient.exists(
-            ["http://localhost:${port}/repo1", "http://localhost:${port}/repo2"],
-            COORD
-        )
+        assertThat(HttpHeadClient.exists(["http://localhost:${port}/repo1", "http://localhost:${port}/repo2"], COORD))
+                .isFalse()
     }
 
     // --- multi-URL fallback (any() short-circuit) ---
@@ -100,10 +100,8 @@ class HttpHeadClientTest {
         // exists() will get a ConnectException on the first URL, catch it, then try the second.
         int deadPort = allocateFreePort()
 
-        assert HttpHeadClient.exists(
-            ["http://localhost:${deadPort}/repo", "http://localhost:${port}/repo"],
-            COORD
-        )
+        assertThat(HttpHeadClient.exists(["http://localhost:${deadPort}/repo", "http://localhost:${port}/repo"], COORD))
+                .isTrue()
     }
 
     // --- exception path inside check() ---
@@ -113,7 +111,7 @@ class HttpHeadClientTest {
         // Nothing listens on deadPort → ConnectException is caught inside check(), returns false
         int deadPort = allocateFreePort()
 
-        assert !HttpHeadClient.exists(["http://localhost:${deadPort}/repo"], COORD)
+        assertThat(HttpHeadClient.exists(["http://localhost:${deadPort}/repo"], COORD)).isFalse()
     }
 
     // --- URL construction (exists delegates path-building to toPathSuffix) ---
@@ -131,7 +129,7 @@ class HttpHeadClientTest {
         HttpHeadClient.exists(["http://localhost:${port}/repo"], COORD)
 
         // toPathSuffix converts dots in group to slashes
-        assert receivedPaths == ['/repo/org/example/foo/1.0/foo-1.0.jar']
+        assertThat(receivedPaths).containsExactly('/repo/org/example/foo/1.0/foo-1.0.jar')
     }
 
     // --- helpers ---

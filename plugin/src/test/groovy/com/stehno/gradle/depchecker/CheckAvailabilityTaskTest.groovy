@@ -18,11 +18,12 @@ package com.stehno.gradle.depchecker
 import org.gradle.api.Project
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
 import java.nio.file.Path
+
+import static org.assertj.core.api.Assertions.*
 
 class CheckAvailabilityTaskTest {
 
@@ -59,7 +60,7 @@ class CheckAvailabilityTaskTest {
         HttpHeadClient.metaClass.static.exists = { Collection urls, DependencyCoordinate coord -> true }
 
         def task = buildTask('all-pass') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['com.example:foo:1.0', 'com.example:bar:2.0'])
             failOnMissing = true
         }
@@ -72,7 +73,7 @@ class CheckAvailabilityTaskTest {
         HttpHeadClient.metaClass.static.exists = { Collection urls, DependencyCoordinate coord -> false }
 
         def task = buildTask('missing-no-fail') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['com.example:foo:1.0'])
             failOnMissing = false
         }
@@ -85,15 +86,15 @@ class CheckAvailabilityTaskTest {
         HttpHeadClient.metaClass.static.exists = { Collection urls, DependencyCoordinate coord -> false }
 
         def task = buildTask('missing-with-fail') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['com.example:foo:1.0'])
             failOnMissing = true
         }
 
         try {
             task.checkAvailability()
-            Assertions.fail()
-        } catch (RuntimeException ex) {
+            fail()
+        } catch (RuntimeException ignored) {
             // expected
         }
     }
@@ -109,15 +110,16 @@ class CheckAvailabilityTaskTest {
         }
 
         def task = buildTask('ignored') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['com.example:foo:1.0', 'com.example:bar:2.0'])
             ignored.set(['com.example:bar:2.0'])
         }
 
         task.checkAvailability()
 
-        assert 'com.example:foo:1.0' in checkedCoords
-        assert !('com.example:bar:2.0' in checkedCoords)
+        assertThat(checkedCoords)
+                .contains('com.example:foo:1.0')
+                .doesNotContain('com.example:bar:2.0')
     }
 
     @Test
@@ -128,7 +130,7 @@ class CheckAvailabilityTaskTest {
         }
 
         def task = buildTask('ignored-partial-fail') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['com.example:foo:1.0', 'com.example:bar:2.0', 'com.example:baz:3.0'])
             ignored.set(['com.example:baz:3.0'])
             failOnMissing = true
@@ -136,8 +138,8 @@ class CheckAvailabilityTaskTest {
 
         try {
             task.checkAvailability()
-            Assertions.fail()
-        } catch (RuntimeException ex) {
+            fail()
+        } catch (RuntimeException ignored) {
             // expected — bar is unavailable and not ignored
         }
     }
@@ -153,7 +155,7 @@ class CheckAvailabilityTaskTest {
         }
 
         def task = buildTask('mixed-results') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['com.example:foo:1.0', 'com.example:bar:2.0'])
             failOnMissing = false   // don't throw so both results.each iterations complete
         }
@@ -172,21 +174,19 @@ class CheckAvailabilityTaskTest {
         }
 
         def task = buildTask('coord-parsing') {
-            repoUrls.set(['http://repo.example.com'])
+            repoUrls.set(['https://repo.example.com'])
             dependencyCoordinates.set(['org.apache.commons:commons-lang3:3.12.0'])
         }
 
         task.checkAvailability()
 
-        assert receivedCoords.size() == 1
-        assert receivedCoords[0].group == 'org.apache.commons'
-        assert receivedCoords[0].name == 'commons-lang3'
-        assert receivedCoords[0].version == '3.12.0'
+        assertThat(receivedCoords)
+                .containsOnly(new DependencyCoordinate('org.apache.commons', 'commons-lang3', '3.12.0'))
     }
 
     // --- helpers ---
 
-    private CheckAvailabilityTask buildTask(String name, Closure configure) {
+    private static CheckAvailabilityTask buildTask(String name, Closure configure) {
         Project project = ProjectBuilder.builder()
             .withProjectDir(projectDir.resolve(name).toFile())
             .build()
@@ -196,6 +196,6 @@ class CheckAvailabilityTaskTest {
 
         project.checkAvailability(configure)
 
-        project.tasks.getByName('checkAvailability') as CheckAvailabilityTask
+        project.tasks.named('checkAvailability').get() as CheckAvailabilityTask
     }
 }

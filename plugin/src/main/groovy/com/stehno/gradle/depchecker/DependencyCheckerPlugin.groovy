@@ -33,10 +33,10 @@ class DependencyCheckerPlugin implements Plugin<Project> {
                     : task.configurations.get()
 
                 configNames.collectEntries { String configName ->
-                    def config = project.configurations.findByName(configName)
-                    String deps = config
-                        ? config.dependencies.collect { d -> "${d.group}:${d.name}" }.join(',')
-                        : ''
+                    String deps = project.configurations.names.contains(configName)
+                            ? project.configurations.named(configName).get().dependencies.collect { d ->
+                                "${d.group}:${d.name}"}.join(',')
+                            : ''
                     [(configName): deps]
                 } as Map<String, String>
             })
@@ -52,8 +52,8 @@ class DependencyCheckerPlugin implements Plugin<Project> {
 
                 Set<DependencyCoordinate> coords = new LinkedHashSet<>()
                 configNames.each { String cname ->
-                    def config = project.configurations.findByName(cname)
-                    if (config?.canBeResolved) {
+                    if (project.configurations.names.contains(cname) && project.configurations.named(cname).get().canBeResolved) {
+                        def config = project.configurations.named(cname).get()
                         config.incoming.resolutionResult.allComponents.each { component ->
                             if (component.id instanceof ModuleComponentIdentifier) {
                                 def mv = component.moduleVersion
@@ -64,6 +64,12 @@ class DependencyCheckerPlugin implements Plugin<Project> {
                 }
                 coords.collect { it.toString() }
             })
+        }
+
+        project.plugins.withId('java') {
+            project.tasks.named('check').configure {
+                it.dependsOn(project.tasks.named('checkDependencies'))
+            }
         }
     }
 }
